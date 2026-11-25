@@ -1,7 +1,7 @@
 /* State and actions for workflow 1: the CM summary chain. */
 import { useRef, useState } from 'react';
 import { DOCS, PROMPTS, REC } from './data.js';
-import { ask, server } from './api.js';
+import { ask, server, liveHint } from './api.js';
 import { readDocument } from './files.js';
 
 export const NODES = [
@@ -87,7 +87,7 @@ function offlineFacts(docs) {
     para.replace(/\s+/g, ' ').split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter(s => /\d/.test(s) && s.length > 25).slice(0, 4)
       .forEach(s => { if (n < 40) rows.push(`| ${++n} | ${s.trim().replace(/\|/g, '/').slice(0, 220)} | Doc ${di + 1}, para ${pi + 1} | Stated |`); });
   }));
-  return `OFFLINE PREVIEW (replay mode, no AI): sentences that contain figures, found by a simple rule.\n\n${rows.join('\n')}\n\nAdd ANTHROPIC_API_KEY to .env so Claude can extract, draft, check and translate your own documents.`;
+  return `OFFLINE PREVIEW (replay mode, no AI): sentences that contain figures, found by a simple rule.\n\n${rows.join('\n')}\n\nTo let Claude extract, draft, check and translate your own documents, ${liveHint()}.`;
 }
 
 /* Re-running a desk makes everything after it out of date */
@@ -122,7 +122,7 @@ export function useChain(notify) {
     const target = id === 'failure' || id === 'fix' ? 'draft' : id;
     const node = id === 'fix' ? 'critic' : id === 'failure' ? 'draft' : id;
     if (s.custom && !server.live && id !== 'extract') {
-      say(`Replay mode has recorded outputs only for the sample documents. Add ANTHROPIC_API_KEY to .env to run “${nameOf(node)}” on your documents, or restore the sample set on the Documents desk.`, 'pause');
+      say(`Replay mode has recorded outputs only for the sample documents. To run “${nameOf(node)}” on your documents, ${liveHint()}, or restore the sample set on the Documents desk.`, 'pause');
       return false;
     }
     const reset = ['extract', 'draft', 'critic', 'urdu'].includes(id) ? resetAfter(s, id)
@@ -240,7 +240,7 @@ export function useChain(notify) {
         const docs = replace ? got : [...ref.current.docs, ...got];
         set({ doc: replace ? 0 : docs.length - got.length });
         docsChanged(`${got.length} document(s) uploaded: ${got.map(d => d.name).join(', ')}.`, docs);
-        notify(`${got.length} document(s) loaded. ${server.live ? 'Run the chain.' : 'Add ANTHROPIC_API_KEY to .env to process them with Claude.'}`);
+        notify(`${got.length} document(s) loaded. ${server.live ? 'Run the chain.' : `To process them with Claude, ${liveHint()}.`}`);
       }
       if (bad.length) notify(bad.join(' '));
     },

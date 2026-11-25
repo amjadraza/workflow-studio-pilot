@@ -199,3 +199,11 @@ header{background:linear-gradient(135deg,#052A33 0%,#06333E 45%,#035E70 100%)}
 .trace details{margin:6px 0 0;border:0;padding:0}.trace summary{font-size:14px;min-height:28px;color:var(--soft)}
 .trace pre{white-space:pre-wrap;font-size:13.5px;margin:6px 0 0;max-height:220px;overflow:auto}
 .ag-final h3{margin:16px 0 4px;font-size:19px}
+/* ---------- Live / Replay switch ---------- */
+.modeswitch{display:inline-flex;background:#0B323C;border:1px solid #1E5462;border-radius:30px;padding:3px}
+.modeswitch button{min-height:36px;padding:6px 14px;border-radius:30px;background:transparent;color:#CFE3E8;font-size:14px;white-space:nowrap}
+.modeswitch button[aria-checked=true]{background:var(--gold);color:#06333E}
+.modeswitch button small{font-weight:600;opacity:.8}
+.modeswitch.theme button{min-width:38px;padding:6px 10px;font-size:16px}
+.login-page{position:relative}
+.login-theme{position:absolute;top:16px;right:16px}

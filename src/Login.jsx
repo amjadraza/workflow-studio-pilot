@@ -1,6 +1,7 @@
 /* Sign-in screen: the person types their name and the shared PIN. */
 import { useState } from 'react';
 import { login } from './api.js';
+import ThemeSwitch from './components/ThemeSwitch.jsx';
 
 export default function Login({ onSignedIn }) {
   const [name, setName] = useState('');
@@ -24,6 +25,7 @@ export default function Login({ onSignedIn }) {
 
   return (
     <div className="login-page">
+      <div className="login-theme"><ThemeSwitch /></div>
       <form className="card login" onSubmit={submit}>
         <h1>Workflow Studio</h1>
         <p className="what">Enter your name and the session PIN from your trainer.</p>

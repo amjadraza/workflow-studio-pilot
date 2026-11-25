@@ -1,7 +1,18 @@
 /* Talks to our own server (/api). The server holds the Claude key and checks the sign-in. */
 
-/* Filled in by loadSession(); read by the rest of the app */
-export const server = { user: null, live: false, model: '' };
+/* Filled in by loadSession(); read by the rest of the app.
+   hasKey: the server has an API key.  live: the mode the person chose (Live only possible with a key). */
+export const server = { user: null, hasKey: false, live: false, model: '' };
+const MODE_KEY = 'workflow-studio-mode';
+
+/* Switch between Live (Claude API) and Replay (recorded outputs); remembered in this browser */
+export function setLive(on) {
+  server.live = server.hasKey && on;
+  try { localStorage.setItem(MODE_KEY, server.live ? 'live' : 'replay'); } catch { /* storage blocked: still works for this visit */ }
+}
+
+/* What to tell people who need live mode for something */
+export const liveHint = () => (server.hasKey ? 'switch to Live mode (top right)' : 'add ANTHROPIC_API_KEY to .env');
 
 async function call(path, body) {
   const res = await fetch(path, body === undefined ? {} : {
@@ -15,7 +26,11 @@ async function call(path, body) {
 }
 
 export async function loadSession() {
-  Object.assign(server, await (await call('/api/session')).json());
+  const session = await (await call('/api/session')).json();
+  let saved = null;
+  try { saved = localStorage.getItem(MODE_KEY); } catch { /* storage blocked */ }
+  Object.assign(server, { user: session.user, model: session.model, hasKey: session.live });
+  server.live = session.live && saved !== 'replay'; // default: Live when a key is set
   return server.user;
 }
 export async function login(name, pin) {

@@ -1,7 +1,7 @@
 /* Tab 1: a chain of desks turns three documents into a signed summary for the CM. */
 import { Fragment, useState } from 'react';
 import { ANSWERS } from '../data.js';
-import { server } from '../api.js';
+import { server, liveHint } from '../api.js';
 import { NODES, LABEL, OFFICER_CHECKS, nameOf } from '../useChain.js';
 import Output from '../components/Output.jsx';
 import { Progress } from '../components/Charts.jsx';
@@ -51,7 +51,7 @@ function DocumentsDesk({ chain, busy }) {
   const upload = files => chain.addFiles([...files], replace);
   return (
     <>
-      {s.custom && !server.live && <p className="notice">Replay mode: recorded outputs exist only for the sample documents. Extract facts will show an offline preview; add ANTHROPIC_API_KEY to .env to run every desk on your documents.</p>}
+      {s.custom && !server.live && <p className="notice">Replay mode: recorded outputs exist only for the sample documents. Extract facts will show an offline preview; to run every desk on your documents, {liveHint()}.</p>}
       <div className={'drop' + (over ? ' over' : '')}
         onDragOver={e => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}

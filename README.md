@@ -27,11 +27,19 @@ Copy `.env.example` to `.env` and fill it in. These settings stay on the server 
 | Variable | Meaning |
 | --- | --- |
 | `APP_PIN` | **Required.** The PIN people type, with their own name, to sign in. |
-| `ANTHROPIC_API_KEY` | Empty = **replay mode** (recorded outputs, works offline). Set = **live mode**: every AI desk calls Claude. |
+| `ANTHROPIC_API_KEY` | Empty = **replay mode only** (recorded outputs, works offline). Set = **live mode** is available: every AI desk calls Claude. |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5-5` (default), `claude-haiku-5-5` or `claude-opus-5-5`. |
 | `SESSION_SECRET` | Long random string that signs the login cookie. If empty, everyone is signed out whenever the server restarts. |
 
 Restart the server after changing `.env`.
+
+**Live / Replay switch (top right).** When a key is set, each person can switch between
+**Live: Claude API** and **Replay: recorded outputs** at any time, for example to fall back to replay
+if the venue Wi-Fi drops. Live is the default; the choice is remembered in that browser.
+Without a key, only Replay is available.
+
+**Light / Dark switch** (top right, and on the sign-in page): ◐ follows the computer's setting (default),
+☀ forces light, ☾ forces dark. Remembered in that browser.
 
 ## Sign-in
 

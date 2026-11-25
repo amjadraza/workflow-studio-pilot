@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { server, loadSession, logout } from './api.js';
+import { server, loadSession, logout, setLive } from './api.js';
+import ThemeSwitch from './components/ThemeSwitch.jsx';
 import { useChain } from './useChain.js';
 import { useComplaints } from './useComplaints.js';
 import { useAgent } from './useAgent.js';
@@ -31,6 +32,22 @@ export default function App() {
   return <Studio user={user} onSignOut={() => logout().finally(() => setUser(null))} />;
 }
 
+/* Two-button switch: Live (Claude API) or Replay (recorded outputs). Live needs a key on the server. */
+function ModeSwitch({ live, onChange }) {
+  const noKey = !server.hasKey;
+  return (
+    <div className="modeswitch" role="radiogroup" aria-label="AI mode">
+      <button role="radio" aria-checked={live} disabled={noKey} onClick={() => onChange(true)}
+        title={noKey ? 'Add ANTHROPIC_API_KEY to .env and restart the server to enable Live mode' : `Every AI desk calls Claude (${server.model})`}>
+        Live: Claude API{live && <small> · {server.model}</small>}
+      </button>
+      <button role="radio" aria-checked={!live} onClick={() => onChange(false)} title="Every AI desk uses the recorded outputs; works offline">
+        Replay: recorded outputs
+      </button>
+    </div>
+  );
+}
+
 function Studio({ user, onSignOut }) {
   const [tab, setTab] = useState('cm');
   const [toast, setToast] = useState('');
@@ -46,6 +63,14 @@ function Studio({ user, onSignOut }) {
   const cx = useComplaints(notify);
   const agent = useAgent();
 
+  /* Live or Replay: read by every AI call at the moment it runs */
+  const [live, setLiveState] = useState(server.live);
+  const chooseMode = on => {
+    setLive(on);
+    setLiveState(server.live);
+    notify(server.live ? `Live mode: AI desks now call Claude (${server.model}).` : 'Replay mode: AI desks now use the recorded outputs.');
+  };
+
   return (
     <>
       <header>
@@ -55,7 +80,8 @@ function Studio({ user, onSignOut }) {
             <p className="sub">Watch a chain of prompts move a file from desk to desk, then watch an agent choose its own steps. AI drafts and checks; officers approve. Nothing leaves without a human signature.</p>
           </div>
           <div className="user">
-            <span className="mode">{server.live ? `Live: Claude API (${server.model})` : 'Replay: recorded outputs'}</span>
+            <ModeSwitch live={live} onChange={chooseMode} />
+            <ThemeSwitch />
             <span>Signed in as <b>{user}</b></span>
             <button className="ghost" style={{ color: '#fff', minHeight: 36, padding: '6px 12px' }} onClick={onSignOut}>Sign out</button>
           </div>

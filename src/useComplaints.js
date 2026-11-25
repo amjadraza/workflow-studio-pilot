@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { CX, CX_REC, CX_PROMPT, norm } from './data.js';
 import { rulesClassify, rowsToComplaints } from './rules.js';
-import { askJSON, server } from './api.js';
+import { askJSON, server, liveHint } from './api.js';
 import { readSheet, saveSheet } from './files.js';
 import { now } from './useChain.js';
 
@@ -78,7 +78,7 @@ export function useComplaints(notify) {
       const results = Object.fromEntries(todo.map(c => [c.id, recorded(c) || rulesClassify(c)]));
       mode = Object.values(results).some(r => r.by === 'rules') ? 'offline rules (replay mode)' : 'recorded outputs';
       set(cur => ({ res: { ...cur.res, ...results } }));
-      if (mode.startsWith('offline')) notify('Replay mode: your complaints were sorted by simple offline rules. Add ANTHROPIC_API_KEY to .env to use Claude.');
+      if (mode.startsWith('offline')) notify(`Replay mode: your complaints were sorted by simple offline rules. To use Claude, ${liveHint()}.`);
     }
     set({ running: false });
     log(`AI desks classified, routed and drafted ${Object.keys(ref.current.res).length} replies (${mode}). All wait in the review queue.`);
