@@ -2,6 +2,7 @@
 .env
 node_modules
 dist
+data
 lib
 demo-data
 WorkflowStudio.html

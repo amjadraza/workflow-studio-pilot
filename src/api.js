@@ -42,6 +42,12 @@ export async function logout() {
   server.user = null;
 }
 
+/* The morning media brief: schedule, run now, review. Each call returns this person's schedule and briefs. */
+export const briefsApi = (action, body) => call('/api/briefs' + (action ? '/' + action : ''), body).then(r => r.json());
+
+/* Exercise 6: run the dashboard prompt on Claude (server-side, takes minutes) and poll for the result */
+export const dashboardApi = (action, body) => call('/api/dashboard' + (action ? '/' + action : ''), body).then(r => r.json());
+
 /* Streams the reply, calling onText with the text so far. Returns the full text, or null if not live or the call failed. */
 export async function ask(prompt, onText) {
   if (!server.live) return null;

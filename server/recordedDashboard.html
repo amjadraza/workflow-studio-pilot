@@ -1,0 +1,480 @@
+<!-- Recorded run for Replay mode: Claude (claude-sonnet-5-5) ran the exercise 6 prompt on the CSV, 2026-11-25. -->
+<!-- ANSWER:
+**Lahore's 2025 average PM2.5 is 68.7 µg/m³.** That is 13.7 times the WHO guideline of 5 µg/m³. I checked it a second way with `awk` on the raw CSV and got the same figure. It is the mean of 365 daily values. Lahore had 176 "Unhealthy" days in 2025, meaning a daily US AQI above 150.
+
+The page is saved as `dashboard.html`. It is one file with all the calculated data embedded.
+
+- **Headline finding:** Lahore is not the most polluted city. Faisalabad is higher on the 2023–2025 average, and in 2025 Faisalabad and Multan were both higher. Lahore ranks 2nd of 9 on the 2023–2025 average and 3rd in 2025. The headline and sub-headline say this.
+- **Worst month on record:** January 2026, at 151.5 µg/m³. I took "on record" to mean the whole data period, which includes the partial 2026. The card also shows the worst month of 2025, January at 128.3.
+- **Islamabad and Rawalpindi:** the file shows identical values for both, so they appear once, plotted at Islamabad's coordinates.
+- **Partial years:** 2022 and 2026 are labelled as partial. The city ranking uses only 2023–2025.
+- **Gaps:** the only gap in the file is the US AQI value on 4 Aug 2022. The page shows "No data" where a value is missing.
+
+**What I could not do or check:**
+- **Map tiles:** this environment has no internet, so I could not load real map tiles. The page tries them first and falls back to the outline of Pakistan after 10 seconds if they don't load. I tested the outline version. I tested the tile version only with a stand-in for the map library, so it needs a quick check on a connected computer.
+- **Urdu names and outline:** the Urdu city names are my own labels, not from your file, and I could not check how they render with real fonts. The Pakistan outline is simplified Natural Earth data, not an official boundary.
+- **Layout:** I checked the layout with code and in a headless browser, but I could not view the screenshots.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lahore air quality over time and compared with other cities</title>
+<style>
+:root{
+  --ink:#1b2733; --muted:#5a6773; --line:#d9dee3; --bg:#f3f5f7; --card:#fff;
+  --lahore:#b3261e; --other:#8fa3b5; --who:#1b7f3b; --neqs:#c26a00; --band:#dbe7f5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header{background:#12324d;color:#fff;border-radius:10px;padding:22px 24px;margin-bottom:16px}
+header h1{margin:0 0 8px;font-size:clamp(1.35rem,3.2vw,2rem);line-height:1.25}
+header p{margin:4px 0;font-size:1.02rem;color:#dbe6f0}
+.chip{display:inline-block;background:#ffffff22;border:1px solid #ffffff55;border-radius:999px;padding:3px 12px;font-size:.9rem;margin-top:8px}
+section{background:var(--card);border-radius:10px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 2px #0001}
+h2{margin:0 0 2px;font-size:1.25rem}
+.how{margin:0 0 12px;color:var(--muted);font-size:.95rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border-radius:10px;padding:14px 16px;border-top:5px solid var(--lahore);box-shadow:0 1px 2px #0001}
+.kpi .lab{font-size:.9rem;color:var(--muted);font-weight:600}
+.kpi .val{font-size:2.3rem;font-weight:700;line-height:1.15;margin:2px 0}
+.kpi .val small{font-size:1rem;font-weight:500;color:var(--muted)}
+.kpi .sub{font-size:.88rem;color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.btns button{font:inherit;font-size:.92rem;border:1px solid #9aa8b5;background:#fff;color:var(--ink);border-radius:6px;padding:6px 11px;cursor:pointer}
+.btns button[aria-pressed="true"]{background:#12324d;color:#fff;border-color:#12324d}
+.btns button:focus-visible{outline:3px solid #f2a900;outline-offset:1px}
+.maprow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.maprow>div{min-width:0}
+.tblwrap{overflow-x:auto}
+@media(max-width:860px){.maprow{grid-template-columns:minmax(0,1fr)}}
+#mapbox{position:relative;height:500px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#eef3f7}
+#lmap{position:absolute;inset:0;visibility:hidden;z-index:2}
+#lmap .leaflet-tile-pane{filter:grayscale(1) opacity(.55)}
+#svgmap{position:absolute;inset:0;width:100%;height:100%}
+#mapnote{font-size:.85rem;color:#8a4b00;margin:6px 0 0;min-height:1.2em}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.85rem;margin-top:8px;align-items:center}
+.legend span.sw{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid #333;vertical-align:-2px;margin-right:4px}
+table.mt{border-collapse:collapse;width:100%;font-size:.9rem}
+table.mt th{text-align:left;font-size:.8rem;color:var(--muted);border-bottom:2px solid var(--line);padding:4px 6px}
+table.mt td{border-bottom:1px solid var(--line);padding:5px 6px;vertical-align:middle}
+table.mt td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+table.mt tr.lah td{background:#fdecea}
+.ur{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Noto Naskh Arabic","Segoe UI",Tahoma,serif;direction:rtl;unicode-bidi:isolate}
+.cat{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.78rem;border:1px solid #0003;white-space:nowrap}
+.chart{width:100%;overflow-x:auto}
+svg text{font-family:inherit}
+#tip{position:fixed;z-index:1000;pointer-events:none;background:#12324d;color:#fff;border-radius:6px;padding:8px 10px;font-size:.88rem;max-width:280px;display:none;box-shadow:0 2px 8px #0005}
+#tip b{font-size:.98rem}
+#tip .ur{font-size:1.1rem;line-height:2}
+.keyline{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.88rem;margin:0 0 6px;color:var(--ink)}
+.keyline i{display:inline-block;vertical-align:middle;margin-right:5px}
+.notes{font-size:.88rem;color:var(--muted)}
+.notes li{margin-bottom:4px}
+footer{font-size:.9rem;padding:8px 4px 24px;color:var(--ink);text-align:center}
+.leaflet-tooltip.ctip{background:#12324d;color:#fff;border:0;box-shadow:0 2px 8px #0005;padding:8px 10px;white-space:normal;max-width:280px}
+.leaflet-tooltip.ctip:before{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1 id="headline">Loading…</h1>
+  <p id="subline"></p>
+  <span class="chip" id="period"></span>
+</header>
+
+<div class="kpis" id="kpis" aria-label="Lahore key numbers for 2025"></div>
+
+<section>
+  <h2>Where is the air worst? Map of 9 locations</h2>
+  <p class="how">Bigger circle = higher average PM2.5. Circle colour = US AQI category of the average daily AQI. Hover over (or tap) a circle for details.</p>
+  <div class="btns" id="yearBtns" role="group" aria-label="Choose a year for the map"></div>
+  <div class="maprow">
+    <div>
+      <div id="mapbox">
+        <div id="lmap"></div>
+        <svg id="svgmap" role="img" aria-label="Simple outline map of Pakistan with one circle per city"></svg>
+      </div>
+      <div id="mapnote"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div>
+      <div class="tblwrap"><table class="mt" id="mapTable"></table></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Lahore month by month</h2>
+  <p class="how">Average PM2.5 for each month. The blue bands are October to January. Dashed lines show the WHO guideline and the Pakistan NEQS limit (both are <u>annual</u> values, so a single month above them is not itself a breach, but it shows how far the air is from them).</p>
+  <div class="keyline">
+    <span><i style="width:22px;height:3px;background:var(--lahore)"></i>Lahore monthly average PM2.5</span>
+    <span><i style="width:14px;height:14px;background:var(--band);border:1px solid #b4c8e0"></i>October–January</span>
+    <span><svg width="26" height="6" style="vertical-align:middle"><line x1="0" y1="3" x2="26" y2="3" stroke="#1b7f3b" stroke-width="2.5" stroke-dasharray="5 3"/></svg> WHO guideline (5 µg/m³)</span>
+    <span><svg width="26" height="6" style="vertical-align:middle"><line x1="0" y1="3" x2="26" y2="3" stroke="#c26a00" stroke-width="2.5" stroke-dasharray="5 3"/></svg> Pakistan NEQS (15 µg/m³, annual)</span>
+  </div>
+  <div class="chart" id="lineChart"></div>
+</section>
+
+<section>
+  <h2>Lahore heatmap: which months are worst each year?</h2>
+  <p class="how">Each box is one month's average PM2.5 (µg/m³). Darker red = more polluted. Grey boxes with “No data” are months outside the data period.</p>
+  <div class="chart" id="heat"></div>
+</section>
+
+<section>
+  <h2>How Lahore compares: city ranking</h2>
+  <p class="how">Annual average PM2.5, highest first. Only full years (2023–2025) are ranked; 2022 and 2026 are partial years and are left out.</p>
+  <div class="btns" id="rankBtns" role="group" aria-label="Choose the period for the ranking"></div>
+  <div class="chart" id="rank"></div>
+</section>
+
+<section>
+  <h2>Notes on the data</h2>
+  <ul class="notes" id="notes"></ul>
+</section>
+
+<footer>Source: Open-Meteo / Copernicus CAMS (CC BY 4.0). Modelled estimates, not measurements.</footer>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+/* ---------- Data calculated from the CSV with Python and embedded here ---------- */
+const DATA = {"period":{"start":"2022-08-04","end":"2026-10-31","days":1550},"places":[{"id":"Lahore","en":"Lahore","ur":"لاہور","lat":31.5204,"lon":74.3587},{"id":"Faisalabad","en":"Faisalabad","ur":"فیصل آباد","lat":31.4504,"lon":73.135},{"id":"Multan","en":"Multan","ur":"ملتان","lat":30.1575,"lon":71.5249},{"id":"Gujranwala","en":"Gujranwala","ur":"گوجرانوالہ","lat":32.1877,"lon":74.1945},{"id":"Islamabad","en":"Islamabad / Rawalpindi","ur":"اسلام آباد / راولپنڈی","lat":33.6844,"lon":73.0479},{"id":"Peshawar","en":"Peshawar","ur":"پشاور","lat":34.0151,"lon":71.5249},{"id":"Karachi","en":"Karachi","ur":"کراچی","lat":24.8607,"lon":67.0011},{"id":"Hyderabad","en":"Hyderabad","ur":"حیدرآباد","lat":25.396,"lon":68.3578},{"id":"Quetta","en":"Quetta","ur":"کوئٹہ","lat":30.1798,"lon":66.975}],"annual":{"Faisalabad":{"2022":{"pm":71.482,"aqi":153.49,"n":150,"naqi":149,"unh":93,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":64.632,"aqi":145.592,"n":365,"naqi":365,"unh":150,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":77.747,"aqi":158.574,"n":366,"naqi":366,"unh":183,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":80.021,"aqi":163.164,"n":365,"naqi":365,"unh":206,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":77.099,"aqi":162.329,"n":304,"naqi":304,"unh":191,"first":"2026-01-01","last":"2026-10-31"}},"Gujranwala":{"2022":{"pm":75.553,"aqi":157.174,"n":150,"naqi":149,"unh":100,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":58.401,"aqi":139.929,"n":365,"naqi":365,"unh":132,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":62.827,"aqi":141.322,"n":366,"naqi":366,"unh":144,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":65.079,"aqi":146.841,"n":365,"naqi":365,"unh":159,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":62.884,"aqi":145.48,"n":304,"naqi":304,"unh":151,"first":"2026-01-01","last":"2026-10-31"}},"Hyderabad":{"2022":{"pm":34.475,"aqi":99.161,"n":150,"naqi":149,"unh":25,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":27.939,"aqi":87.43,"n":365,"naqi":365,"unh":21,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":27.172,"aqi":86.546,"n":366,"naqi":366,"unh":10,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":28.359,"aqi":89.175,"n":365,"naqi":365,"unh":14,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":26.174,"aqi":84.243,"n":304,"naqi":304,"unh":1,"first":"2026-01-01","last":"2026-10-31"}},"Islamabad":{"2022":{"pm":44.955,"aqi":123.852,"n":150,"naqi":149,"unh":21,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":37.016,"aqi":109.115,"n":365,"naqi":365,"unh":26,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":37.442,"aqi":110.298,"n":366,"naqi":366,"unh":53,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":38.677,"aqi":113.981,"n":365,"naqi":365,"unh":52,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":36.979,"aqi":111.622,"n":304,"naqi":304,"unh":34,"first":"2026-01-01","last":"2026-10-31"}},"Karachi":{"2022":{"pm":41.22,"aqi":113.832,"n":150,"naqi":149,"unh":40,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":32.671,"aqi":96.901,"n":365,"naqi":365,"unh":41,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":26.77,"aqi":85.656,"n":366,"naqi":366,"unh":8,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":29.184,"aqi":90.205,"n":365,"naqi":365,"unh":8,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":26.768,"aqi":84.908,"n":304,"naqi":304,"unh":1,"first":"2026-01-01","last":"2026-10-31"}},"Lahore":{"2022":{"pm":89.906,"aqi":170.906,"n":150,"naqi":149,"unh":113,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":67.589,"aqi":152.742,"n":365,"naqi":365,"unh":198,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":68.319,"aqi":149.246,"n":366,"naqi":366,"unh":169,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":68.747,"aqi":153.463,"n":365,"naqi":365,"unh":176,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":65.981,"aqi":151.661,"n":304,"naqi":304,"unh":167,"first":"2026-01-01","last":"2026-10-31"}},"Multan":{"2022":{"pm":64.605,"aqi":141.638,"n":150,"naqi":149,"unh":70,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":56.438,"aqi":132.997,"n":365,"naqi":365,"unh":128,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":66.394,"aqi":143.123,"n":366,"naqi":366,"unh":140,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":73.007,"aqi":151.819,"n":365,"naqi":365,"unh":167,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":62.1,"aqi":143.135,"n":304,"naqi":304,"unh":119,"first":"2026-01-01","last":"2026-10-31"}},"Peshawar":{"2022":{"pm":44.185,"aqi":125.718,"n":150,"naqi":149,"unh":28,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":34.782,"aqi":107.205,"n":365,"naqi":365,"unh":13,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":33.542,"aqi":102.609,"n":366,"naqi":366,"unh":33,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":38.946,"aqi":114.249,"n":365,"naqi":365,"unh":43,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":39.574,"aqi":115.283,"n":304,"naqi":304,"unh":31,"first":"2026-01-01","last":"2026-10-31"}},"Quetta":{"2022":{"pm":10.987,"aqi":55.711,"n":150,"naqi":149,"unh":0,"first":"2022-08-04","last":"2022-12-31"},"2023":{"pm":15.656,"aqi":65.964,"n":365,"naqi":365,"unh":0,"first":"2023-01-01","last":"2023-12-31"},"2024":{"pm":17.344,"aqi":68.437,"n":366,"naqi":366,"unh":1,"first":"2024-01-01","last":"2024-12-31"},"2025":{"pm":21.952,"aqi":83.66,"n":365,"naqi":365,"unh":14,"first":"2025-01-01","last":"2025-12-31"},"2026":{"pm":25.357,"aqi":89.941,"n":304,"naqi":304,"unh":17,"first":"2026-01-01","last":"2026-10-31"}}},"lahoreMonthly":[{"y":2022,"m":8,"pm":47.807,"n":28,"dim":28},{"y":2022,"m":9,"pm":67.8,"n":30,"dim":30},{"y":2022,"m":10,"pm":102.932,"n":31,"dim":31},{"y":2022,"m":11,"pm":103.447,"n":30,"dim":30},{"y":2022,"m":12,"pm":123.194,"n":31,"dim":31},{"y":2023,"m":1,"pm":131.19,"n":31,"dim":31},{"y":2023,"m":2,"pm":76.382,"n":28,"dim":28},{"y":2023,"m":3,"pm":64.635,"n":31,"dim":31},{"y":2023,"m":4,"pm":43.5,"n":30,"dim":30},{"y":2023,"m":5,"pm":41.91,"n":31,"dim":31},{"y":2023,"m":6,"pm":52.293,"n":30,"dim":30},{"y":2023,"m":7,"pm":44.348,"n":31,"dim":31},{"y":2023,"m":8,"pm":57.229,"n":31,"dim":31},{"y":2023,"m":9,"pm":46.817,"n":30,"dim":30},{"y":2023,"m":10,"pm":59.716,"n":31,"dim":31},{"y":2023,"m":11,"pm":83.703,"n":30,"dim":30},{"y":2023,"m":12,"pm":108.774,"n":31,"dim":31},{"y":2024,"m":1,"pm":149.597,"n":31,"dim":31},{"y":2024,"m":2,"pm":63.041,"n":29,"dim":29},{"y":2024,"m":3,"pm":42.874,"n":31,"dim":31},{"y":2024,"m":4,"pm":31.263,"n":30,"dim":30},{"y":2024,"m":5,"pm":36.39,"n":31,"dim":31},{"y":2024,"m":6,"pm":41.687,"n":30,"dim":30},{"y":2024,"m":7,"pm":57.468,"n":31,"dim":31},{"y":2024,"m":8,"pm":36.548,"n":31,"dim":31},{"y":2024,"m":9,"pm":51.707,"n":30,"dim":30},{"y":2024,"m":10,"pm":66.839,"n":31,"dim":31},{"y":2024,"m":11,"pm":124.867,"n":30,"dim":30},{"y":2024,"m":12,"pm":116.439,"n":31,"dim":31},{"y":2025,"m":1,"pm":128.271,"n":31,"dim":31},{"y":2025,"m":2,"pm":71.332,"n":28,"dim":28},{"y":2025,"m":3,"pm":38.074,"n":31,"dim":31},{"y":2025,"m":4,"pm":39.543,"n":30,"dim":30},{"y":2025,"m":5,"pm":59.387,"n":31,"dim":31},{"y":2025,"m":6,"pm":54.413,"n":30,"dim":30},{"y":2025,"m":7,"pm":52.794,"n":31,"dim":31},{"y":2025,"m":8,"pm":47.432,"n":31,"dim":31},{"y":2025,"m":9,"pm":40.887,"n":30,"dim":30},{"y":2025,"m":10,"pm":69.994,"n":31,"dim":31},{"y":2025,"m":11,"pm":100.53,"n":30,"dim":30},{"y":2025,"m":12,"pm":121.277,"n":31,"dim":31},{"y":2026,"m":1,"pm":151.481,"n":31,"dim":31},{"y":2026,"m":2,"pm":80.957,"n":28,"dim":28},{"y":2026,"m":3,"pm":45.297,"n":31,"dim":31},{"y":2026,"m":4,"pm":27.693,"n":30,"dim":30},{"y":2026,"m":5,"pm":45.516,"n":31,"dim":31},{"y":2026,"m":6,"pm":54.683,"n":30,"dim":30},{"y":2026,"m":7,"pm":66.535,"n":31,"dim":31},{"y":2026,"m":8,"pm":58.884,"n":31,"dim":31},{"y":2026,"m":9,"pm":61.48,"n":30,"dim":30},{"y":2026,"m":10,"pm":66.987,"n":31,"dim":31}],"kpi":{"pm25":68.747,"days":365,"who":5,"neqs":15,"who_x":13.749,"worst":{"y":2026,"m":1,"pm":151.481,"n":31,"dim":31},"worst2025":{"y":2025,"m":1,"pm":128.271,"n":31,"dim":31},"unhealthy":176,"aqi_days":365,"vu_haz":46,"winter_mean":105.117,"other_mean":49.49},"outline":[[77.837,35.494],[76.872,34.654],[75.757,34.505],[74.24,34.749],[73.75,34.318],[74.104,33.441],[74.452,32.765],[75.259,32.271],[74.406,31.693],[74.421,30.98],[73.451,29.976],[72.824,28.962],[71.778,27.913],[70.616,27.989],[69.514,26.941],[70.169,26.492],[70.283,25.722],[70.845,25.215],[71.043,24.357],[68.843,24.359],[68.177,23.692],[67.444,23.945],[67.145,24.664],[66.373,25.425],[64.53,25.237],[62.906,25.218],[61.497,25.078],[61.874,26.24],[63.317,26.757],[63.234,27.217],[62.755,27.379],[62.728,28.26],[61.772,28.699],[61.369,29.303],[60.874,29.829],[62.55,29.319],[63.55,29.468],[64.148,29.341],[64.35,29.56],[65.047,29.472],[66.346,29.888],[66.381,30.739],[66.939,31.305],[67.683,31.303],[67.793,31.583],[68.557,31.713],[68.927,31.62],[69.318,31.901],[69.263,32.502],[69.687,33.105],[70.324,33.359],[69.931,34.02],[70.882,33.989],[71.157,34.349],[71.115,34.733],[71.613,35.153],[71.499,35.651],[71.262,36.074],[71.846,36.51],[72.92,36.72],[74.068,36.836],[74.576,37.021],[75.158,37.133],[75.897,36.667],[76.193,35.898],[77.837,35.494]]};
+</script>
+<script>
+(function(){
+"use strict";
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_LONG=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const CATS=[
+ {name:"Good",lo:0,hi:50,col:"#00e400",txt:"#000"},
+ {name:"Moderate",lo:51,hi:100,col:"#ffff00",txt:"#000"},
+ {name:"Unhealthy for Sensitive Groups",lo:101,hi:150,col:"#ff7e00",txt:"#000"},
+ {name:"Unhealthy",lo:151,hi:200,col:"#ff0000",txt:"#fff"},
+ {name:"Very Unhealthy",lo:201,hi:300,col:"#8f3f97",txt:"#fff"},
+ {name:"Hazardous",lo:301,hi:999,col:"#7e0023",txt:"#fff"}];
+const catOf=a=>a==null?null:CATS.find(c=>a<=c.hi+0.999)||CATS[5];
+const NODATA="No data";
+const f1=v=>v==null?NODATA:v.toFixed(1);
+const $=id=>document.getElementById(id);
+const P=DATA.places, A=DATA.annual, K=DATA.kpi, LM=DATA.lahoreMonthly;
+const YEARS=[2022,2023,2024,2025,2026];
+const FULL=[2023,2024,2025];
+const isPartial=y=>y===2022||y===2026;
+const yLabel=y=>y===2022?"2022 (partial: Aug–Dec)":y===2026?"2026 (partial: Jan–Oct)":String(y);
+const fmtDate=s=>{const [y,m,d]=s.split("-").map(Number);return d+" "+MONTHS[m-1]+" "+y;};
+const svgNS="http://www.w3.org/2000/svg";
+function el(tag,attrs,parent,text){const e=document.createElementNS(svgNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+const ann=(id,y)=>(A[id]&&A[id][y])||null;
+const pmOf=(id,y)=>{const a=ann(id,y);return a?a.pm:null;};
+function fullAvg(id){const v=FULL.map(y=>pmOf(id,y));return v.some(x=>x==null)?null:v.reduce((a,b)=>a+b,0)/v.length;}
+
+/* ---------- tooltip ---------- */
+const tip=$("tip");
+function showTip(html,x,y){tip.innerHTML=html;tip.style.display="block";
+  const w=tip.offsetWidth,h=tip.offsetHeight;let l=x+14,t=y+14;
+  if(l+w>innerWidth-6)l=x-w-14; if(l<6)l=6; if(t+h>innerHeight-6)t=y-h-14; if(t<6)t=6;
+  tip.style.left=l+"px";tip.style.top=t+"px";}
+function hideTip(){tip.style.display="none";}
+function catPill(c){return c?'<span class="cat" style="background:'+c.col+';color:'+c.txt+'">'+c.name+'</span>':NODATA;}
+
+/* ---------- header and KPI cards ---------- */
+function ranksFor(vals){ // vals: {id:value}; returns sorted ids, highest first
+  return Object.keys(vals).filter(k=>vals[k]!=null).sort((a,b)=>vals[b]-vals[a]);}
+function initHeader(){
+  const p23=pmOf("Lahore",2023),p24=pmOf("Lahore",2024),p25=K.pm25;
+  const rel=(p25-p23)/p23;
+  const cmp=Math.abs(rel)<=0.05?"about the same as in 2023 ("+f1(p23)+") and 2024 ("+f1(p24)+")"
+            :(rel>0?"higher than in 2023 ("+f1(p23)+")":"lower than in 2023 ("+f1(p23)+")");
+  $("headline").textContent="Lahore's PM2.5 averaged "+K.pm25.toFixed(1)+" µg/m³ in 2025 — "+K.who_x.toFixed(1)+" times the WHO guideline — "+cmp;
+  const avg={};P.forEach(p=>avg[p.id]=fullAvg(p.id));
+  const r=ranksFor(avg),pos=r.indexOf("Lahore")+1,top=P.find(p=>p.id===r[0]).en;
+  const r25={};P.forEach(p=>r25[p.id]=pmOf(p.id,2025));const q=ranksFor(r25),pos25=q.indexOf("Lahore")+1;
+  const ordinal=n=>n+(["th","st","nd","rd"][(n%100>10&&n%100<14)?0:Math.min(n%10,4)%4]||"th");
+  let s="October to January is the worst season: across 2023–2025, Lahore averaged "+f1(K.winter_mean)+" µg/m³ in Oct–Jan against "+f1(K.other_mean)+" in the other months. ";
+  s+="Of the 9 locations, Lahore ranks "+ordinal(pos)+" on the 2023–2025 average and "+ordinal(pos25)+" in 2025"+(pos>1?" ("+top+" is highest on the 2023–2025 average).":".");
+  $("subline").textContent=s;
+  $("period").textContent="Data period: "+fmtDate(DATA.period.start)+" – "+fmtDate(DATA.period.end)+"  ·  2022 and 2026 are partial years";
+}
+function initKpis(){
+  const w=K.worst,w5=K.worst2025;
+  const cards=[
+   {lab:"Average PM2.5, Lahore 2025",val:f1(K.pm25),unit:" µg/m³",sub:"Average of "+K.days+" daily values in 2025."},
+   {lab:"Times above the WHO guideline",val:K.who_x.toFixed(1)+"×",unit:"",sub:"2025 average ÷ WHO annual guideline of "+K.who+" µg/m³."},
+   {lab:"Worst month on record",val:MONTHS_LONG[w.m-1]+" "+w.y,unit:"",sub:f1(w.pm)+" µg/m³ monthly average (highest of all months in the data). Worst month of 2025: "+MONTHS_LONG[w5.m-1]+", "+f1(w5.pm)+"."},
+   {lab:"“Unhealthy” days in 2025",val:String(K.unhealthy),unit:" of "+K.aqi_days+" days",sub:"Days with daily US AQI above 150 ("+K.vu_haz+" of them were Very Unhealthy or Hazardous)."}];
+  $("kpis").innerHTML=cards.map(c=>'<div class="kpi"><div class="lab">'+c.lab+'</div><div class="val" '+(c.val.length>9?'style="font-size:1.75rem"':'')+'>'+c.val+'<small>'+c.unit+'</small></div><div class="sub">'+c.sub+'</div></div>').join("");
+}
+function initNotes(){
+  const full=P.map(p=>p.id);
+  const items=[
+   "All numbers are calculated from the daily file supplied (PM2.5 and US AQI for 10 cities). Where a value is missing, the page shows “No data”. The only gap in the file: US AQI is missing on 4 Aug 2022 (the first day, only 19 hours of data); PM2.5 is available for that day.",
+   "2022 (4 Aug – 31 Dec) and 2026 (1 Jan – 31 Oct) are partial years. They cover different seasons from a full year, so do not compare their averages with full years. Rankings use full years 2023–2025 only.",
+   "Islamabad and Rawalpindi have identical values in the file (they share one model grid cell), so they are shown as one location, placed at Islamabad's coordinates.",
+   "Monthly values are the average of the daily averages in that month. “Average PM2.5” for a year is the average of all daily values in that year. The ranking's 2023–2025 figure is the average of the three yearly averages.",
+   "Map circle colour uses the average of the daily US AQI in the selected year, placed in the standard US AQI categories (Good 0–50, Moderate 51–100, Unhealthy for Sensitive Groups 101–150, Unhealthy 151–200, Very Unhealthy 201–300, Hazardous 301+). An “Unhealthy day” is a day with daily mean AQI above 150, so it includes Very Unhealthy and Hazardous days.",
+   "WHO guideline (5 µg/m³) and Pakistan NEQS (15 µg/m³) are annual values, as supplied in the brief. Comparing a single month with them is only a guide.",
+   "Urdu city names are display labels added for this page; they are not in the data file. The simple outline of Pakistan (used if map tiles cannot load) is from Natural Earth (public domain), simplified and for illustration only, not an official boundary."];
+  $("notes").innerHTML=items.map(t=>"<li>"+t+"</li>").join("");
+}
+
+/* ---------- map ---------- */
+let mapYear=2025, mapMode="svg", lmap=null, lcircles=[];
+const radius=pm=>pm==null?0:Math.max(6,2.9*Math.sqrt(pm));   // circle AREA is proportional to PM2.5
+function mapRows(y){
+  return P.map(p=>{const a=ann(p.id,y);return {p:p,pm:a?a.pm:null,aqi:a?a.aqi:null,n:a?a.n:0,unh:a?a.unh:null,cat:catOf(a?a.aqi:null)};})
+          .sort((a,b)=>(b.pm==null)-(a.pm==null)||b.pm-a.pm);
+}
+function tipHTML(r,y){
+  return '<b>'+r.p.en+'</b><br><span class="ur">'+r.p.ur+'</span><br>'+yLabel(y)+'<br>'
+    +'Average PM2.5: <b>'+(r.pm==null?NODATA:f1(r.pm)+' µg/m³')+'</b><br>'
+    +'Average US AQI: <b>'+(r.aqi==null?NODATA:Math.round(r.aqi))+'</b> '+(r.cat?catPill(r.cat):'')+'<br>'
+    +'Days with AQI above 150: <b>'+(r.unh==null?NODATA:r.unh)+'</b>';
+}
+function initYearBtns(){
+  $("yearBtns").innerHTML="";
+  YEARS.forEach(y=>{const b=document.createElement("button");b.textContent=yLabel(y);b.setAttribute("aria-pressed",y===mapYear);
+    b.onclick=()=>{mapYear=y;[...$("yearBtns").children].forEach(c=>c.setAttribute("aria-pressed",c===b));drawMap();};$("yearBtns").appendChild(b);});
+}
+function initLegend(){
+  let h=CATS.map(c=>'<span><span class="sw" style="background:'+c.col+'"></span>'+c.name+'</span>').join("");
+  h+='<span style="margin-left:6px">Size: </span>'+[20,40,80].map(v=>{const r=radius(v);return '<span><svg width="'+(2*r+2)+'" height="'+(2*r+2)+'" style="vertical-align:middle"><circle cx="'+(r+1)+'" cy="'+(r+1)+'" r="'+r+'" fill="#ddd" stroke="#333"/></svg> '+v+' µg/m³</span>';}).join("");
+  $("legend").innerHTML=h;
+}
+function drawTable(rows){
+  let h='<caption style="text-align:left;font-weight:600;padding-bottom:4px">Average PM2.5 in '+yLabel(mapYear)+'</caption><thead><tr><th>City</th><th>اردو</th><th style="text-align:right">PM2.5 µg/m³</th><th>AQI category</th></tr></thead><tbody>';
+  rows.forEach(r=>{h+='<tr'+(r.p.id==="Lahore"?' class="lah"':'')+'><td>'+r.p.en+'</td><td class="ur">'+r.p.ur+'</td><td class="n">'+f1(r.pm)+'</td><td>'+(r.cat?catPill(r.cat):NODATA)+'</td></tr>';});
+  $("mapTable").innerHTML=h+"</tbody>";
+}
+function drawMap(){
+  const rows=mapRows(mapYear);
+  drawTable(rows);
+  $("mapnote").textContent=(mapMode==="svg"&&tilesFailed?"Map tiles could not be loaded, so a simple outline of Pakistan is shown instead. ":"")
+    +(isPartial(mapYear)?(mapYear===2022?"Partial year: 2022 covers 4 Aug–31 Dec only":"Partial year: 2026 covers 1 Jan–31 Oct only")+" — averages cover fewer months and cannot be compared with full years.":"");
+  if(mapMode==="svg")drawSvgMap(rows);else drawLeaflet(rows);
+}
+/* Leaflet map with real map tiles. It is loaded in the background; the simple outline map is shown
+   straight away and stays if the library or the tiles cannot be loaded (e.g. no internet). */
+let tilesFailed=false;
+function drawLeaflet(rows){
+  lcircles.forEach(c=>c.remove());lcircles=[];
+  rows.forEach(r=>{
+    if(r.pm==null)return;
+    const c=L.circleMarker([r.p.lat,r.p.lon],{radius:radius(r.pm),color:"#222",weight:1.5,fillColor:r.cat?r.cat.col:"#ccc",fillOpacity:.85}).addTo(lmap);
+    c.bindTooltip(tipHTML(r,mapYear),{className:"ctip",sticky:true});
+    lcircles.push(c);
+  });
+}
+function dropLeaflet(){
+  if(mapMode==="leaflet")return;
+  tilesFailed=true;
+  try{if(lmap){lmap.remove();lmap=null;}}catch(e){}
+  $("lmap").style.display="none";
+  drawMap();
+}
+function startLeaflet(){
+  if(typeof L==="undefined"){dropLeaflet();return;}
+  try{
+    lmap=L.map("lmap",{scrollWheelZoom:false});
+    lmap.fitBounds([[23.4,60.6],[37.4,77.9]]);
+    const tiles=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:9,minZoom:4,attribution:"© OpenStreetMap contributors"}).addTo(lmap);
+    tiles.on("tileload",()=>{
+      if(mapMode==="leaflet"||!lmap)return;
+      mapMode="leaflet";$("lmap").style.visibility="visible";$("svgmap").style.display="none";
+      lmap.invalidateSize();drawMap();
+    });
+    setTimeout(dropLeaflet,10000);   // no tile arrived in 10 s: keep the outline map
+  }catch(e){dropLeaflet();}
+}
+function initLeaflet(){
+  const css=document.createElement("link");css.rel="stylesheet";css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+  css.onload=()=>{
+    const s=document.createElement("script");s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload=startLeaflet;s.onerror=dropLeaflet;document.head.appendChild(s);};
+  css.onerror=dropLeaflet;
+  document.head.appendChild(css);
+  const f=document.createElement("link");f.rel="stylesheet";f.href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap";document.head.appendChild(f);
+}
+/* Simple outline map (always works, no internet needed) */
+const LAB={Lahore:[24,22,"start"],Gujranwala:[22,-14,"start"],Faisalabad:[-24,24,"end"],Multan:[-22,22,"end"],Islamabad:[22,-8,"start"],Peshawar:[-22,-10,"end"],Karachi:[22,12,"start"],Hyderabad:[22,4,"start"],Quetta:[-20,-14,"end"]};
+function drawSvgMap(rows){
+  const svg=$("svgmap");svg.innerHTML="";
+  const W=640,H=540,lon0=60.4,lon1=78.2,lat0=23.2,lat1=37.4,kx=Math.cos(30.4*Math.PI/180);
+  const s=Math.min(W/((lon1-lon0)*kx),H/(lat1-lat0));
+  const ox=(W-(lon1-lon0)*kx*s)/2,oy=(H-(lat1-lat0)*s)/2;
+  const X=lon=>ox+(lon-lon0)*kx*s,Y=lat=>oy+(lat1-lat)*s;
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  el("rect",{x:0,y:0,width:W,height:H,fill:"#eef3f7"},svg);
+  el("path",{d:"M"+DATA.outline.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join("L")+"Z",fill:"#fbfaf4",stroke:"#6b7a88","stroke-width":1.6,"stroke-linejoin":"round"},svg);
+  const g=el("g",{},svg);
+  rows.forEach(r=>{
+    if(r.pm==null)return;
+    const cx=X(r.p.lon),cy=Y(r.p.lat);
+    const c=el("circle",{cx:cx,cy:cy,r:radius(r.pm),fill:r.cat?r.cat.col:"#ccc","fill-opacity":.88,stroke:"#222","stroke-width":1.5,tabindex:0,
+      "aria-label":r.p.en+": "+f1(r.pm)+" micrograms per cubic metre, "+(r.cat?r.cat.name:NODATA)},g);
+    c.style.cursor="pointer";
+    c.addEventListener("pointermove",e=>showTip(tipHTML(r,mapYear),e.clientX,e.clientY));
+    c.addEventListener("pointerleave",hideTip);
+    c.addEventListener("focus",()=>{const b=c.getBoundingClientRect();showTip(tipHTML(r,mapYear),b.right,b.top);});
+    c.addEventListener("blur",hideTip);
+  });
+  rows.forEach(r=>{ // labels on top of all circles
+    if(r.pm==null)return;const o=LAB[r.p.id]||[18,0,"start"];
+    const t=el("text",{x:X(r.p.lon)+o[0],y:Y(r.p.lat)+o[1],"text-anchor":o[2],"font-size":13,"font-weight":r.p.id==="Lahore"?700:500,fill:"#1b2733",stroke:"#fff","stroke-width":3.5,"paint-order":"stroke","pointer-events":"none"},svg,r.p.en);
+  });
+}
+
+/* ---------- Lahore monthly line chart ---------- */
+function drawLine(){
+  const box=$("lineChart");box.innerHTML="";
+  const W=Math.max(box.clientWidth,640),H=380,m={l:52,r:14,t:16,b:56};
+  const iw=W-m.l-m.r,ih=H-m.t-m.b,N=LM.length;
+  const maxv=Math.max(...LM.map(d=>d.pm));const ymax=Math.ceil(maxv/20)*20;
+  const slot=iw/N,X=i=>m.l+slot*(i+.5),Y=v=>m.t+ih-v/ymax*ih;
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,width:W,height:H,role:"img","aria-label":"Line chart of Lahore monthly average PM2.5 from "+MONTHS[LM[0].m-1]+" "+LM[0].y+" to "+MONTHS[LM[N-1].m-1]+" "+LM[N-1].y},box);
+  // shaded Oct-Jan bands
+  let i=0;
+  while(i<N){
+    if([10,11,12,1].includes(LM[i].m)){let j=i;while(j+1<N&&[10,11,12,1].includes(LM[j+1].m)&&!(LM[j+1].m===10))j++;
+      el("rect",{x:m.l+slot*i,y:m.t,width:slot*(j-i+1),height:ih,fill:"#dbe7f5"},svg);i=j+1;}else i++;
+  }
+  // grid + y axis
+  for(let v=0;v<=ymax;v+=20){el("line",{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),stroke:v===0?"#7b8794":"#ffffffcc","stroke-width":v===0?1.2:1.2},svg);
+    el("text",{x:m.l-8,y:Y(v)+4,"text-anchor":"end","font-size":12,fill:"#5a6773"},svg,v);}
+  el("text",{transform:"translate("+14+","+(m.t+ih/2)+") rotate(-90)","text-anchor":"middle","font-size":12,fill:"#5a6773"},svg,"PM2.5 (µg/m³)");
+  // x axis: month ticks + year labels
+  const showMon=slot>=11;
+  LM.forEach((d,k)=>{
+    if(showMon&&[1,4,7,10].includes(d.m))el("text",{x:X(k),y:m.t+ih+15,"text-anchor":"middle","font-size":11,fill:"#5a6773"},svg,MONTHS[d.m-1]);
+  });
+  const yrs=[...new Set(LM.map(d=>d.y))];
+  yrs.forEach(y=>{
+    const idx=LM.map((d,k)=>d.y===y?k:-1).filter(k=>k>=0),a=idx[0],b=idx[idx.length-1];
+    const cx=m.l+slot*(a+b+1)/2;
+    if(a>0)el("line",{x1:m.l+slot*a,x2:m.l+slot*a,y1:m.t+ih,y2:m.t+ih+46,stroke:"#b6c0ca"},svg);
+    const lbl=isPartial(y)?(slot*(b-a+1)>=120?y+" (partial year)":y+" (partial)"):String(y);
+    el("text",{x:cx,y:m.t+ih+(showMon?33:20),"text-anchor":"middle","font-size":12.5,"font-weight":600,fill:"#1b2733"},svg,lbl);
+  });
+  // reference lines
+  [[K.who,"#1b7f3b","WHO guideline 5 µg/m³ (annual)",-4],[K.neqs,"#c26a00","Pakistan NEQS 15 µg/m³ (annual)",-4]].forEach(r=>{
+    el("line",{x1:m.l,x2:W-m.r,y1:Y(r[0]),y2:Y(r[0]),stroke:r[1],"stroke-width":2.5,"stroke-dasharray":"7 4"},svg);
+    el("text",{x:m.l+6,y:Y(r[0])+(r[0]===K.who?-4:-5),"font-size":11.5,"font-weight":600,fill:r[1]},svg,r[2]);
+  });
+  // line (gaps break the line)
+  let path="",pen=false;
+  LM.forEach((d,k)=>{if(d.pm==null){pen=false;return;}path+=(pen?"L":"M")+X(k).toFixed(1)+","+Y(d.pm).toFixed(1);pen=true;});
+  el("path",{d:path,fill:"none",stroke:"#b3261e","stroke-width":2.6,"stroke-linejoin":"round"},svg);
+  LM.forEach((d,k)=>{if(d.pm!=null)el("circle",{cx:X(k),cy:Y(d.pm),r:slot>9?3.2:2,fill:"#b3261e"},svg);});
+  // annotate the highest month
+  const hi=LM.reduce((a,d,k)=>d.pm>LM[a].pm?k:a,0);
+  const hx=X(hi),anchor=hx>W-130?"end":"middle";
+  el("text",{x:Math.min(hx,W-m.r-2),y:Y(LM[hi].pm)-9,"text-anchor":anchor,"font-size":12,"font-weight":700,fill:"#7a1812"},svg,"Highest: "+MONTHS[LM[hi].m-1]+" "+LM[hi].y+" ("+f1(LM[hi].pm)+")");
+  // hover layer
+  const guide=el("line",{y1:m.t,y2:m.t+ih,stroke:"#12324d","stroke-width":1,"stroke-dasharray":"2 3",visibility:"hidden"},svg);
+  const ov=el("rect",{x:m.l,y:m.t,width:iw,height:ih,fill:"transparent"},svg);
+  function move(e){
+    const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)*(W/r.width);
+    const k=Math.max(0,Math.min(N-1,Math.floor((px-m.l)/slot)));const d=LM[k];
+    guide.setAttribute("x1",X(k));guide.setAttribute("x2",X(k));guide.setAttribute("visibility","visible");
+    showTip("<b>"+MONTHS_LONG[d.m-1]+" "+d.y+"</b><br>Average PM2.5: <b>"+(d.pm==null?NODATA:f1(d.pm)+" µg/m³")+"</b><br>"
+      +(d.pm==null?"":(d.pm/K.who).toFixed(1)+"× the WHO guideline<br>")+"Days with data: "+d.n+(d.n<d.dim?" of "+d.dim+" (part month)":"")
+      +([10,11,12,1].includes(d.m)?"<br>Oct–Jan period":"")+(isPartial(d.y)?"<br>"+d.y+" is a partial year":""),e.clientX,e.clientY);
+  }
+  ov.addEventListener("pointermove",move);ov.addEventListener("pointerleave",()=>{hideTip();guide.setAttribute("visibility","hidden");});
+}
+
+/* ---------- Lahore heatmap (years x months) ---------- */
+function heatCol(v,max){ // pale yellow -> orange -> red -> dark maroon
+  const stops=[[0,[255,255,204]],[.25,[254,217,118]],[.5,[253,141,60]],[.75,[227,26,28]],[1,[103,0,31]]];
+  const t=Math.max(0,Math.min(1,v/max));let k=1;while(k<stops.length-1&&t>stops[k][0])k++;
+  const a=stops[k-1],b=stops[k],u=(t-a[0])/(b[0]-a[0]);
+  const c=a[1].map((x,i)=>Math.round(x+(b[1][i]-x)*u));
+  return {fill:"rgb("+c.join(",")+")",dark:(0.299*c[0]+0.587*c[1]+0.114*c[2])<150};
+}
+function drawHeat(){
+  const box=$("heat");box.innerHTML="";
+  const W=Math.max(box.clientWidth,620),m={l:150,r:10,t:26,b:46},ch=46,H=m.t+ch*YEARS.length+m.b;
+  const cw=(W-m.l-m.r)/12,max=Math.ceil(Math.max(...LM.map(d=>d.pm))/10)*10;
+  const lookup={};LM.forEach(d=>lookup[d.y+"-"+d.m]=d);
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,width:W,height:H,role:"img","aria-label":"Heatmap of Lahore monthly average PM2.5, years by months"},box);
+  MONTHS.forEach((mn,i)=>el("text",{x:m.l+cw*(i+.5),y:m.t-8,"text-anchor":"middle","font-size":13,"font-weight":600,fill:"#1b2733"},svg,mn));
+  YEARS.forEach((y,r)=>{
+    const ty=m.t+ch*r+ch/2;
+    el("text",{x:m.l-10,y:ty-(isPartial(y)?2:-4),"text-anchor":"end","font-size":14,"font-weight":700,fill:"#1b2733"},svg,y);
+    if(isPartial(y))el("text",{x:m.l-10,y:ty+13,"text-anchor":"end","font-size":11,fill:"#8a4b00"},svg,y===2022?"partial: from 4 Aug":"partial: to 31 Oct");
+    for(let mo=1;mo<=12;mo++){
+      const d=lookup[y+"-"+mo],x=m.l+cw*(mo-1),yy=m.t+ch*r;
+      const has=d&&d.pm!=null,col=has?heatCol(d.pm,max):null;
+      const rect=el("rect",{x:x+1.5,y:yy+1.5,width:cw-3,height:ch-3,rx:4,fill:has?col.fill:"#eceff2",stroke:has?"none":"#c5ccd3","stroke-dasharray":has?"":"3 3"},svg);
+      el("text",{x:x+cw/2,y:yy+ch/2+5,"text-anchor":"middle","font-size":has?14:11.5,"font-weight":has?600:400,fill:has?(col.dark?"#fff":"#1b2733"):"#6b7782","pointer-events":"none"},svg,has?Math.round(d.pm):NODATA);
+      rect.addEventListener("pointermove",e=>showTip("<b>"+MONTHS_LONG[mo-1]+" "+y+"</b><br>"+(has?"Average PM2.5: <b>"+f1(d.pm)+" µg/m³</b><br>"+(d.pm/K.who).toFixed(1)+"× the WHO guideline<br>Days with data: "+d.n+(d.n<d.dim?" of "+d.dim+" (part month)":""):NODATA)+(isPartial(y)?"<br>"+y+" is a partial year":""),e.clientX,e.clientY));
+      rect.addEventListener("pointerleave",hideTip);
+    }
+  });
+  // colour scale
+  const id="hg"+Math.floor(Math.random()*1e6),defs=el("defs",{},svg),lg=el("linearGradient",{id:id,x1:0,x2:1,y1:0,y2:0},defs);
+  for(let i=0;i<=10;i++)el("stop",{offset:i/10,"stop-color":heatCol(max*i/10,max).fill},lg);
+  const sx=m.l,sw=Math.min(300,W-m.l-m.r),sy=m.t+ch*YEARS.length+14;
+  el("rect",{x:sx,y:sy,width:sw,height:11,fill:"url(#"+id+")",stroke:"#9aa8b5"},svg);
+  [0,.5,1].forEach(t=>el("text",{x:sx+sw*t,y:sy+25,"text-anchor":t===0?"start":t===1?"end":"middle","font-size":11,fill:"#5a6773"},svg,Math.round(max*t)));
+  el("text",{x:sx+sw+10,y:sy+10,"font-size":11.5,fill:"#5a6773"},svg,"µg/m³ (monthly average PM2.5)");
+}
+
+/* ---------- city ranking bar chart ---------- */
+let rankSel="avg";
+function initRankBtns(){
+  const opts=[["avg","2023–2025 average"],[2023,"2023"],[2024,"2024"],[2025,"2025"]];
+  $("rankBtns").innerHTML="";
+  opts.forEach(o=>{const b=document.createElement("button");b.textContent=o[1];b.setAttribute("aria-pressed",o[0]===rankSel);
+    b.onclick=()=>{rankSel=o[0];[...$("rankBtns").children].forEach(c=>c.setAttribute("aria-pressed",c===b));drawRank();};$("rankBtns").appendChild(b);});
+}
+function drawRank(){
+  const box=$("rank");box.innerHTML="";
+  const rows=P.map(p=>({p:p,v:rankSel==="avg"?fullAvg(p.id):pmOf(p.id,rankSel)}))
+    .sort((a,b)=>(a.v==null)-(b.v==null)||b.v-a.v);
+  const W=Math.max(box.clientWidth,320),narrow=W<520,fs=narrow?12.5:14;
+  const labels=rows.map((r,i)=>(r.v==null?"–":(i+1))+". "+r.p.en);
+  // measure the widest label so that nothing is cut off
+  const probe=el("svg",{width:10,height:10,style:"position:absolute;visibility:hidden"},document.body);
+  const pt=el("text",{"font-size":fs,"font-weight":700},probe);
+  let lw=0;labels.forEach(s=>{pt.textContent=s;lw=Math.max(lw,pt.getComputedTextLength());});probe.remove();
+  lw=Math.ceil(lw)+18;
+  const m={l:lw,r:56,t:26,b:48},rh=38,H=m.t+rh*rows.length+m.b;
+  const iw=Math.max(W-m.l-m.r,60),xmax=Math.ceil(Math.max(...rows.map(r=>r.v||0))/20)*20,X=v=>m.l+v/xmax*iw;
+  const svg=el("svg",{viewBox:"0 0 "+(m.l+iw+m.r)+" "+H,width:m.l+iw+m.r,height:H,role:"img","aria-label":"Bar chart ranking cities by average PM2.5"},box);
+  for(let v=0;v<=xmax;v+=20){el("line",{x1:X(v),x2:X(v),y1:m.t,y2:m.t+rh*rows.length,stroke:v===0?"#7b8794":"#e6eaee"},svg);
+    el("text",{x:X(v),y:m.t+rh*rows.length+16,"text-anchor":"middle","font-size":11.5,fill:"#5a6773"},svg,v);}
+  el("text",{x:m.l+iw/2,y:H-8,"text-anchor":"middle","font-size":12,fill:"#5a6773"},svg,"Average PM2.5 (µg/m³)");
+  rows.forEach((r,i)=>{
+    const y=m.t+rh*i,lah=r.p.id==="Lahore";
+    el("text",{x:m.l-10,y:y+rh/2+5,"text-anchor":"end","font-size":lah?fs+1:fs,"font-weight":lah?700:500,fill:lah?"#b3261e":"#1b2733"},svg,labels[i]);
+    if(r.v==null){el("text",{x:m.l+8,y:y+rh/2+5,"font-size":13,fill:"#6b7782"},svg,NODATA);return;}
+    const bar=el("rect",{x:m.l,y:y+6,width:Math.max(1,X(r.v)-m.l),height:rh-12,rx:3,fill:lah?"#b3261e":"#8fa3b5",stroke:lah?"#7a1812":"none","stroke-width":1.5},svg);
+    el("text",{x:X(r.v)+6,y:y+rh/2+5,"font-size":14,"font-weight":700,fill:lah?"#b3261e":"#1b2733"},svg,f1(r.v));
+    const yrs=FULL.map(yy=>yy+": "+f1(pmOf(r.p.id,yy))).join("<br>");
+    const h=e=>showTip("<b>"+r.p.en+"</b><br><span class='ur'>"+r.p.ur+"</span><br>Rank "+(i+1)+" of "+rows.filter(z=>z.v!=null).length+"<br>"+(rankSel==="avg"?"Average of yearly averages: <b>"+f1(r.v)+" µg/m³</b><br>"+yrs:"Average PM2.5 in "+rankSel+": <b>"+f1(r.v)+" µg/m³</b>")+"<br>"+(r.v/K.who).toFixed(1)+"× the WHO guideline",e.clientX,e.clientY);
+    bar.addEventListener("pointermove",h);bar.addEventListener("pointerleave",hideTip);
+  });
+  // reference lines
+  [[K.who,"#1b7f3b","WHO 5"],[K.neqs,"#c26a00","NEQS 15"]].forEach((r,k)=>{
+    el("line",{x1:X(r[0]),x2:X(r[0]),y1:m.t-4,y2:m.t+rh*rows.length,stroke:r[1],"stroke-width":2.2,"stroke-dasharray":"6 4"},svg);
+    el("text",{x:X(r[0])+(k?4:-4),y:m.t-9,"text-anchor":k?"start":"end","font-size":11.5,"font-weight":600,fill:r[1]},svg,r[2]);
+  });
+}
+
+/* ---------- start ---------- */
+function drawCharts(){drawLine();drawHeat();drawRank();}
+initHeader();initKpis();initNotes();initYearBtns();initLegend();initRankBtns();
+drawMap();
+drawCharts();
+setTimeout(initLeaflet,0);
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(drawCharts,150);});
+})();
+</script>
+</body>
+</html>

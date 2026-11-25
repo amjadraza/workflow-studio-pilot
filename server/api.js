@@ -1,6 +1,8 @@
 /* The /api routes: name + PIN login, and a Claude proxy so the API key never reaches the browser.
    Used by the production server (server/index.js) and by `npm run dev` (vite.config.js). */
 import crypto from 'node:crypto';
+import { createBriefs } from './briefs.js';
+import { createDashboardRun } from './dashboardRun.js';
 
 const COOKIE = 'ws_session';
 const SESSION_HOURS = 12;
@@ -15,6 +17,10 @@ export function createApi(env) {
   /* Without a fixed secret, everyone is signed out when the server restarts */
   const SECRET = env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
   const fails = new Map(); // ip -> { count, until }
+  /* the scheduled morning media brief (its own file: server/briefs.js) */
+  const briefs = createBriefs({ KEY, MODEL, DATA_DIR: env.DATA_DIR || 'data', TIMEZONE: env.BRIEF_TIMEZONE || 'Asia/Karachi' });
+  /* exercise 6: run the dashboard prompt on Claude (server/dashboardRun.js) */
+  const dashboard = createDashboardRun({ KEY, MODEL });
 
   if (!PIN) console.warn('[auth] APP_PIN is not set: nobody can sign in. Add it to .env.');
 
@@ -101,6 +107,16 @@ export function createApi(env) {
       if (path === '/api/claude' && req.method === 'POST') {
         if (!currentUser(req)) return send(res, 401, { error: 'Please sign in again.' });
         return await claude(req, res);
+      }
+      if (path.startsWith('/api/dashboard')) {
+        const user = currentUser(req);
+        if (!user) return send(res, 401, { error: 'Please sign in again.' });
+        return await dashboard(req, res, user, path, { readJson, send });
+      }
+      if (path.startsWith('/api/briefs')) {
+        const user = currentUser(req);
+        if (!user) return send(res, 401, { error: 'Please sign in again.' });
+        return await briefs(req, res, user, path, { readJson, send });
       }
       send(res, 404, { error: 'Not found' });
     } catch (e) {

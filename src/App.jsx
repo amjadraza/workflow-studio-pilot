@@ -9,13 +9,12 @@ import CmSummary from './tabs/CmSummary.jsx';
 import Complaints from './tabs/Complaints.jsx';
 import Agent from './tabs/Agent.jsx';
 import Dashboard from './tabs/Dashboard.jsx';
+import MorningBrief from './tabs/MorningBrief.jsx';
+import AirQuality from './tabs/AirQuality.jsx';
+import Home, { CASES } from './Home.jsx';
 
-const TABS = [
-  ['cm', '1 · Summary for the CM (chain)'],
-  ['cx', '2 · Complaint triage (automated)'],
-  ['ag', '3 · Agent: Assembly question'],
-  ['db', '4 · Live dashboard'],
-];
+/* The open exercise lives in the address (#cm, #aq…), so the browser's Back button returns to the home page */
+const fromHash = () => (CASES.some(c => c.id === location.hash.slice(1)) ? location.hash.slice(1) : 'home');
 
 /* Checks the session first; shows the sign-in screen until someone signs in */
 export default function App() {
@@ -49,7 +48,13 @@ function ModeSwitch({ live, onChange }) {
 }
 
 function Studio({ user, onSignOut }) {
-  const [tab, setTab] = useState('cm');
+  const [tab, setTabState] = useState(fromHash);
+  useEffect(() => {
+    const onHash = () => { setTabState(fromHash()); window.scrollTo(0, 0); };
+    addEventListener('hashchange', onHash);
+    return () => removeEventListener('hashchange', onHash);
+  }, []);
+  const setTab = id => { location.hash = id === 'home' ? '' : id; };
   const [toast, setToast] = useState('');
   const timer = useRef();
   const notify = useCallback(text => {
@@ -77,7 +82,7 @@ function Studio({ user, onSignOut }) {
         <div className="top">
           <div>
             <h1>Workflow Studio</h1>
-            <p className="sub">Watch a chain of prompts move a file from desk to desk, then watch an agent choose its own steps. AI drafts and checks; officers approve. Nothing leaves without a human signature.</p>
+            <p className="sub">Watch a chain of prompts move a file from desk to desk, a workflow run on its own every morning, and an agent choose its own steps. AI drafts and checks; officers approve. Nothing leaves without a human signature.</p>
           </div>
           <div className="user">
             <ModeSwitch live={live} onChange={chooseMode} />
@@ -86,18 +91,22 @@ function Studio({ user, onSignOut }) {
             <button className="ghost" style={{ color: '#fff', minHeight: 36, padding: '6px 12px' }} onClick={onSignOut}>Sign out</button>
           </div>
         </div>
-        <nav className="tabs" aria-label="Workflows">
-          {TABS.map(([id, label]) => (
-            <button key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>{label}</button>
+        <nav className="tabs" aria-label="Exercises">
+          <button aria-current={tab === 'home' ? 'page' : undefined} onClick={() => setTab('home')}>⌂ All exercises</button>
+          {CASES.map((c, i) => (
+            <button key={c.id} aria-current={tab === c.id ? 'page' : undefined} onClick={() => setTab(c.id)}>{i + 1} · {c.short}</button>
           ))}
         </nav>
       </header>
 
       <main>
+        {tab === 'home' && <Home open={setTab} />}
         {tab === 'cm' && <CmSummary chain={chain} />}
         {tab === 'cx' && <Complaints cx={cx} />}
+        {tab === 'mb' && <MorningBrief notify={notify} />}
         {tab === 'ag' && <Agent agent={agent} />}
         {tab === 'db' && <Dashboard chain={chain} cx={cx} onLoadSamples={() => { setTab('cx'); cx.loadSamples(); }} />}
+        {tab === 'aq' && <AirQuality notify={notify} />}
       </main>
 
       <div className={'toast' + (toast ? ' on' : '')} role="status" aria-live="polite">{toast}</div>

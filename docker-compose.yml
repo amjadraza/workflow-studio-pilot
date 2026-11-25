@@ -11,3 +11,8 @@ services:
     env_file: .env
     init: true             # passes stop signals to Node, so the container stops cleanly
     restart: unless-stopped
+    volumes:
+      - briefs:/app/data   # morning brief schedules and drafts survive rebuilds
+
+volumes:
+  briefs:

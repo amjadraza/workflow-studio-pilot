@@ -6,6 +6,7 @@ RUN npm ci
 COPY index.html vite.config.js ./
 COPY server ./server
 COPY src ./src
+COPY public ./public
 RUN npm run build
 
 # 2. Run the small Node server (static files + login + Claude proxy). It needs no npm packages.
@@ -15,6 +16,8 @@ ENV NODE_ENV=production PORT=8383
 COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY package.json ./
+# morning briefs and schedules are saved here (a volume in docker-compose.yml)
+RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 EXPOSE 8383
 CMD ["node", "server/index.js"]

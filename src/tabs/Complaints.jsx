@@ -1,4 +1,4 @@
-/* Tab 2: complaints arrive, AI desks classify and draft, officers approve and send. */
+/* Exercise 2: complaints arrive, AI desks classify and draft, officers approve and send. */
 import { useState } from 'react';
 import { CX, CX_PROMPT, isUrdu } from '../data.js';
 import { CX_NODES, needsPerson } from '../useComplaints.js';

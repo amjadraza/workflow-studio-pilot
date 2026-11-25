@@ -1,5 +1,5 @@
-/* Tab 3: an agent. You give a goal, tools and limits; it chooses its own steps, then stops for the Secretary.
-   Compare with tabs 1 and 2, where the steps are fixed in advance (the agent brief, slide 12). */
+/* Exercise 4: an agent. You give a goal, tools and limits; it chooses its own steps, then stops for the Secretary.
+   Compare with exercises 1 to 3, where the steps are fixed in advance (the agent brief, slide 12). */
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { AG_TOOLS, ALWAYS_ON, BLOCKED_TOOLS, ESCALATE_WHEN } from '../agentData.js';
 import Output from '../components/Output.jsx';
@@ -41,7 +41,7 @@ export default function Agent({ agent }) {
     <section className="band">
       <p className="note">Sample data: a fictional Assembly question, the same three training documents, the 20 sample complaints, and a fictional archive of past replies. Wing replies are simulated.</p>
       <div className="contrast">
-        <div><b>Workflow (tabs 1 and 2)</b><span>You fixed the steps in advance. The AI follows them in order.</span></div>
+        <div><b>Workflows (exercises 1 to 3)</b><span>You fixed the steps in advance. The AI follows them in order.</span></div>
         <div className="on"><b>Agent (this tab)</b><span>You give a goal, tools and limits. The AI chooses its own steps, then stops for a person.</span></div>
       </div>
       <div className="loop" aria-label="Agent loop">

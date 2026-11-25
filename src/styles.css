@@ -3,7 +3,8 @@
 --line:light-dark(#D7E6EA,#1E4752);--teal:#035E70;--tealink:light-dark(#035E70,#7FD0DE);--deep:#06333E;--gold:#F8B636;--goldink:light-dark(#8A5F0E,#F8B636);
 --ok:light-dark(#2B6E46,#7DD3A0);--warn:light-dark(#9A3D2E,#F49A8A);
 /* chart colours, validated (dataviz validator) for the light and the dark surface */
---s1:light-dark(#0A7489,#3FA9BE);--crit:light-dark(#C4452F,#D9465A);--amber:light-dark(#D9961A,#BC8C1A);--good:light-dark(#1F8A70,#2E9E85)}
+--s1:light-dark(#0A7489,#3FA9BE);--crit:light-dark(#C4452F,#D9465A);--amber:light-dark(#D9961A,#BC8C1A);--good:light-dark(#1F8A70,#2E9E85);
+--mute:light-dark(#A9BEC4,#3E5F68);--heat:light-dark(#B3261E,#FF7A5C);--heat-ink:light-dark(#FFFFFF,#1B0703);--season:light-dark(#FCEBC4,#2B2614)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,'Segoe UI',Arial,sans-serif;overflow-x:clip}
@@ -207,3 +208,81 @@ header{background:linear-gradient(135deg,#052A33 0%,#06333E 45%,#035E70 100%)}
 .modeswitch.theme button{min-width:38px;padding:6px 10px;font-size:16px}
 .login-page{position:relative}
 .login-theme{position:absolute;top:16px;right:16px}
+/* ---------- Home: exercise cards ---------- */
+.home-intro{margin:0 0 18px}.home-intro h2{margin:0;font-size:26px}.home-intro p{margin:4px 0 0;color:var(--soft);max-width:70ch}
+.cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:18px}
+.case{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;font-weight:400;
+  box-shadow:0 1px 2px rgba(6,51,62,.06),0 8px 24px -12px rgba(6,51,62,.18);transition:transform .15s ease,border-color .15s ease}
+.case:hover{transform:translateY(-2px);border-color:var(--teal)}
+.case-top{display:flex;align-items:center;gap:10px}
+.case-n{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--deep);color:var(--gold);font-weight:800}
+.case-kind{font-size:13px;font-weight:700;color:var(--goldink);text-transform:uppercase;letter-spacing:.04em}
+.case b{font-size:20px;line-height:1.25}
+.case-text{color:var(--soft);font-size:15px;flex:1}
+.case-see{font-size:14px;border-left:3px solid var(--gold);padding-left:8px}
+.case-go{color:var(--tealink);font-weight:700}
+@media (prefers-reduced-motion:reduce){.case{transition:none}.case:hover{transform:none}}
+/* ---------- Morning brief ---------- */
+.prompt{white-space:pre-wrap;font:14px/1.5 Consolas,'Cascadia Mono',monospace;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;max-height:320px;overflow:auto}
+.prompt.tall{max-height:420px;margin:0}
+.mb-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;margin:0 0 14px}
+.mb-list button{flex:none;display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-weight:400;min-height:0}
+.mb-list button.on{border:2px solid var(--teal)}
+.mb-list b{font-size:14px;white-space:nowrap}.mb-list span{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mb-list small{grid-column:1/3;color:var(--soft);font-size:12.5px}.mb-list .pill{grid-row:1/3;grid-column:3}
+.mb-brief h3{margin:4px 0 10px;font-size:18px}
+.brief{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--bg);max-height:62vh;overflow:auto;font-size:15px;line-height:1.55}
+.brief p{margin:0 0 4px}.brief .gap{height:10px}.brief p.h{font-weight:800;margin-top:6px}
+.brief .urdu{display:block;margin:2px 0 6px}
+.brief .lang{display:inline-block;font-size:12px;font-weight:700;color:var(--goldink);text-transform:uppercase}
+.brief a,.src a{color:var(--tealink);overflow-wrap:anywhere}
+.src{margin:8px 0 0;padding-left:20px;font-size:14px}
+.mb-review{margin-top:6px}
+/* ---------- AQI dashboard ---------- */
+.yearpick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.yearpick button{min-height:36px;padding:5px 12px;border-radius:20px;background:var(--bg);border:1px solid var(--line);font-size:14px}
+.yearpick button[aria-checked=true]{background:var(--teal);border-color:var(--teal);color:#fff}
+.yearpick small{font-weight:400;opacity:.85}
+.mapbox{position:relative;width:100%}
+.mapbox svg{display:block;overflow:visible}
+.land{fill:light-dark(#E6EFF1,#12343D);stroke:light-dark(#A9C3CA,#2F5D69);stroke-width:1.5}
+.city{cursor:pointer;outline:none}
+.city circle{stroke:var(--card);stroke-width:2;fill-opacity:.92}
+.city:hover circle,.city:focus-visible circle{stroke:var(--ink)}
+.city text,.mapbox text.axis{font-size:12px;fill:var(--soft)}
+.city text{fill:var(--ink);font-weight:600;paint-order:stroke;stroke:light-dark(#E6EFF1,#12343D);stroke-width:3px}
+.mapbox .grid{stroke:var(--line);stroke-width:1}
+.mapbox .refline{stroke:var(--soft);stroke-width:1.5;stroke-dasharray:5 4}
+.mapbox .season{fill:var(--season)}
+.mapbox .line{fill:none;stroke:var(--s1);stroke-width:2;stroke-linejoin:round}
+.mapbox .cross{stroke:var(--soft);stroke-width:1}
+.mapbox .dot{fill:var(--s1);stroke:var(--card);stroke-width:2}
+.tip{position:absolute;transform:translate(-50%,calc(-100% - 8px));background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+  font-size:13px;line-height:1.45;box-shadow:0 8px 24px -8px rgba(0,0,0,.35);pointer-events:none;white-space:nowrap;z-index:5}
+.urdu-inline{font-family:'Noto Nastaliq Urdu',serif;font-size:14px;margin-left:6px}
+table.heat{border-collapse:separate;border-spacing:2px;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+table.heat th{font-weight:600;color:var(--soft);padding:4px 6px;text-align:center;white-space:nowrap}
+table.heat tbody th{text-align:left;color:var(--ink)}
+table.heat td{text-align:center;padding:8px 2px;border-radius:4px;min-width:38px;font-weight:600}
+table.heat td.nodata{font-size:11px;font-weight:400;color:var(--soft);background:repeating-linear-gradient(135deg,transparent 0 4px,var(--line) 4px 5px)}
+.heatkey{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--soft)}
+.heatkey i{width:160px;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--card),var(--heat));border:1px solid var(--line)}
+a.filebtn{text-decoration:none}
+/* ---------- Phones ---------- */
+.tabs button{flex:none}
+@media(max-width:600px){
+  .modeswitch button{padding:6px 10px;font-size:13px}
+  .modeswitch button small{display:none}
+  .tabs button{padding:10px 12px;font-size:14px}
+}
+/* ---------- Exercise 6: run the prompt on Claude ---------- */
+textarea.prompt{width:100%;min-height:420px;resize:vertical;color:var(--ink)}
+.airun-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:start;gap:10px 20px}
+.airun .what{max-width:75ch}
+.check-answer{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;margin:12px 0 0}
+.check-answer>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.check-answer .lab{font-size:12px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.04em}
+.check-answer p{margin:4px 0 8px;white-space:pre-wrap;font-size:15px}
+@media(max-width:700px){.check-answer{grid-template-columns:minmax(0,1fr)}}
+.airun-frame{display:block;width:100%;height:min(85vh,1000px);margin-top:14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.ref-title{font-size:24px;margin:8px 0 10px}

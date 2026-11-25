@@ -1,4 +1,4 @@
-/* Tab 1: a chain of desks turns three documents into a signed summary for the CM. */
+/* Exercise 1: a chain of desks turns three documents into a signed summary for the CM. */
 import { Fragment, useState } from 'react';
 import { ANSWERS } from '../data.js';
 import { server, liveHint } from '../api.js';

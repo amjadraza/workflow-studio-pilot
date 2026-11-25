@@ -1,4 +1,4 @@
-/* Tab 3: smog figures from the sample report, plus live views of tabs 1 and 2. */
+/* Exercise 5: smog figures from the sample report, plus live views of exercises 1 and 2. */
 import { SMOG_AQI } from '../data.js';
 import { NODES, LABEL } from '../useChain.js';
 import { needsPerson } from '../useComplaints.js';
@@ -32,7 +32,7 @@ function SmogSection({ chain }) {
       <div className="db-head">
         <div>
           <h2>Smog situation · Lahore Division, Week 46</h2>
-          <p>{s.custom ? 'Figures from the sample situation report. Your uploaded documents feed the AI desks in tab 1, not these tiles.' : 'From the training situation report (Doc 1) and the press release (Doc 3). Fictional figures.'}</p>
+          <p>{s.custom ? 'Figures from the sample situation report. Your uploaded documents feed the AI desks in exercise 1, not these tiles.' : 'From the training situation report (Doc 1) and the press release (Doc 3). Fictional figures.'}</p>
         </div>
       </div>
       <Kpis items={[
@@ -95,7 +95,7 @@ function ComplaintsSection({ cx, onLoadSamples }) {
       <div className="db-head">
         <div>
           <h2>Complaints · live from the triage workflow</h2>
-          <p>{n ? `Source: ${s.source}. Updates live as complaints move through tab 2.` : 'Updates as complaints arrive, are classified, approved and sent (tab 2).'}</p>
+          <p>{n ? `Source: ${s.source}. Updates live as complaints move through exercise 2.` : 'Updates as complaints arrive, are classified, approved and sent (exercise 2).'}</p>
         </div>
       </div>
       <Kpis items={[
@@ -118,7 +118,7 @@ function ComplaintsSection({ cx, onLoadSamples }) {
                 <HBars rows={grouped(c => res[c.id]?.category || 'other').filter(([, list]) => list.some(c => res[c.id]))
                   .map(([k, list]) => ({ label: k, segs: urgencySegs(list.filter(c => res[c.id])).slice(0, 3).map(x => ({ ...x, tip: `${k} · ${x.label}: ${x.v}` })) }))} />
               </>
-            ) : <Empty>{s.running ? 'The AI desks are working…' : 'Run the AI desks in tab 2 to see categories.'}</Empty>}
+            ) : <Empty>{s.running ? 'The AI desks are working…' : 'Run the AI desks in exercise 2 to see categories.'}</Empty>}
           </Card>
           <Card title="Complaints by district" cap="Split by urgency once classified; arrivals before that.">
             <Legend items={[...URGENCY.map(([, l, c]) => [l, c]), ...(done < n ? [['Not yet classified', PENDING_COLOR]] : [])]} />
