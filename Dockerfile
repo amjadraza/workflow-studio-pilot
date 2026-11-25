@@ -4,13 +4,17 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY index.html vite.config.js ./
-COPY public ./public
+COPY server ./server
 COPY src ./src
 RUN npm run build
 
-# 2. Serve it with nginx
-FROM nginx:1.27-alpine
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --chmod=755 docker/write-config.sh /docker-entrypoint.d/40-write-config.sh
-COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
+# 2. Run the small Node server (static files + login + Claude proxy). It needs no npm packages.
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000
+COPY --from=build /app/dist ./dist
+COPY server ./server
+COPY package.json ./
+USER node
+EXPOSE 3000
+CMD ["node", "server/index.js"]

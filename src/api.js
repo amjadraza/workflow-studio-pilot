@@ -1,32 +1,37 @@
-/* Claude API calls. Without a key the app uses recorded outputs.
-   Settings come from config.js (written by Docker at start-up) or, in development, from .env. */
-const config = window.APP_CONFIG || {};
-const KEY = config.ANTHROPIC_API_KEY || import.meta.env.VITE_ANTHROPIC_API_KEY || '';
-export const MODEL = config.ANTHROPIC_MODEL || import.meta.env.VITE_ANTHROPIC_MODEL || 'claude-sonnet-5-5';
-export const LIVE = !!KEY;
+/* Talks to our own server (/api). The server holds the Claude key and checks the sign-in. */
 
-const URL = 'https://api.anthropic.com/v1/messages';
-const HEADERS = {
-  'x-api-key': KEY,
-  'anthropic-version': '2023-06-01',
-  'content-type': 'application/json',
-  'anthropic-dangerous-direct-browser-access': 'true',
-};
+/* Filled in by loadSession(); read by the rest of the app */
+export const server = { user: null, live: false, model: '' };
 
-async function post(body) {
-  const res = await fetch(URL, { method: 'POST', headers: HEADERS, body: JSON.stringify({ model: MODEL, ...body }) });
+async function call(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
-    throw new Error(`API error ${res.status}. ${detail?.error?.message || ''}`);
+    throw new Error(detail.error || `Server error ${res.status}`);
   }
   return res;
 }
 
+export async function loadSession() {
+  Object.assign(server, await (await call('/api/session')).json());
+  return server.user;
+}
+export async function login(name, pin) {
+  server.user = (await (await call('/api/login', { name, pin })).json()).user;
+  return server.user;
+}
+export async function logout() {
+  await call('/api/logout', {});
+  server.user = null;
+}
+
 /* Streams the reply, calling onText with the text so far. Returns the full text, or null if not live or the call failed. */
 export async function ask(prompt, onText) {
-  if (!LIVE) return null;
+  if (!server.live) return null;
   try {
-    const res = await post({ max_tokens: 4000, stream: true, messages: [{ role: 'user', content: prompt }] });
+    const res = await call('/api/claude', { max_tokens: 4000, stream: true, messages: [{ role: 'user', content: prompt }] });
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '', text = '';
@@ -53,11 +58,17 @@ export async function ask(prompt, onText) {
   }
 }
 
+/* One agent turn: sends the conversation and the allowed tools, returns Claude's reply (content blocks). Throws on failure. */
+export async function askWithTools(messages, tools) {
+  const res = await call('/api/claude', { max_tokens: 2000, messages, tools });
+  return res.json();
+}
+
 /* Asks for a JSON array. Returns the parsed array, or null if not live or the call failed. */
 export async function askJSON(prompt) {
-  if (!LIVE) return null;
+  if (!server.live) return null;
   try {
-    const res = await post({ max_tokens: 6000, messages: [{ role: 'user', content: prompt + '\n\nReturn only the JSON, with no other text.' }] });
+    const res = await call('/api/claude', { max_tokens: 6000, messages: [{ role: 'user', content: prompt + '\n\nReturn only the JSON, with no other text.' }] });
     const data = await res.json();
     const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
     return JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1));

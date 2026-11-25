@@ -1,4 +1,4 @@
-# Keep the key and local files out of the image
+# Keep secrets and local files out of the image
 .env
 node_modules
 dist

@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { CX, CX_REC, CX_PROMPT, norm } from './data.js';
 import { rulesClassify, rowsToComplaints } from './rules.js';
-import { askJSON, LIVE } from './api.js';
+import { askJSON, server } from './api.js';
 import { readSheet, saveSheet } from './files.js';
 import { now } from './useChain.js';
 
@@ -63,7 +63,7 @@ export function useComplaints(notify) {
     set({ running: true });
     const todo = s.inbox.filter(c => !s.res[c.id]);
     let mode;
-    if (LIVE) {
+    if (server.live) {
       /* batches of 20, so results appear in the queue as they come */
       mode = 'Claude';
       for (let i = 0; i < todo.length; i += 20) {
@@ -78,7 +78,7 @@ export function useComplaints(notify) {
       const results = Object.fromEntries(todo.map(c => [c.id, recorded(c) || rulesClassify(c)]));
       mode = Object.values(results).some(r => r.by === 'rules') ? 'offline rules (replay mode)' : 'recorded outputs';
       set(cur => ({ res: { ...cur.res, ...results } }));
-      if (mode.startsWith('offline')) notify('Replay mode: your complaints were sorted by simple offline rules. Add an API key to .env to use Claude.');
+      if (mode.startsWith('offline')) notify('Replay mode: your complaints were sorted by simple offline rules. Add ANTHROPIC_API_KEY to .env to use Claude.');
     }
     set({ running: false });
     log(`AI desks classified, routed and drafted ${Object.keys(ref.current.res).length} replies (${mode}). All wait in the review queue.`);
