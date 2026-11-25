@@ -47,7 +47,7 @@ On the internet, put it behind HTTPS (for example a reverse proxy such as Caddy 
 ## Deploy with Docker
 
 ```bash
-docker compose up -d --build     # http://localhost:8080
+docker compose up -d --build     # http://localhost:8383
 docker compose down              # stop
 ```
 
@@ -56,7 +56,7 @@ Without compose:
 
 ```bash
 docker build -t workflow-studio .
-docker run -d -p 8080:3000 --env-file .env workflow-studio
+docker run -d --init -p 8383:8383 --env-file .env workflow-studio
 ```
 
 ## Code map
@@ -80,7 +80,7 @@ src/
   tabs/               CmSummary, Complaints, Agent, Dashboard
 vite.config.js        also runs server/api.js inside `npm run dev`
 Dockerfile            build with Node, run server/index.js
-docker-compose.yml    one-command deploy on port 8080
+docker-compose.yml    one-command deploy on port 8383
 ```
 
 The original single-file app (`WorkflowStudio.html` + `lib/`) is still there and still works on its own.

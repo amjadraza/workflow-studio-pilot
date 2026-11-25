@@ -1,9 +1,13 @@
-# Usage: docker compose up -d --build   then open http://localhost:8080
+# Usage: docker compose up -d --build   then open http://localhost:8383
 # Settings (APP_PIN, ANTHROPIC_API_KEY, ANTHROPIC_MODEL, SESSION_SECRET) come from .env.
+# To use another port, change all three 8383s below.
 services:
   workflow-studio:
     build: .
     ports:
-      - "8383:3000"
+      - "8383:8383"        # host:container, kept the same so the log shows the real address
+    environment:
+      PORT: 8383           # the port the server listens on inside the container
     env_file: .env
+    init: true             # passes stop signals to Node, so the container stops cleanly
     restart: unless-stopped

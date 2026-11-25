@@ -16,10 +16,11 @@ const TYPES = {
 async function serveStatic(req, res) {
   const path = normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^([/\\])+/, '');
   if (path.startsWith('..')) { res.writeHead(400).end(); return; }
+  const file = path || 'index.html'; // "/" serves the home page
   try {
-    const body = await readFile(join(DIST, path || 'index.html'));
-    const cache = path.startsWith('assets') ? 'public, max-age=31536000, immutable' : 'no-cache';
-    res.writeHead(200, { 'content-type': TYPES[extname(path)] || 'application/octet-stream', 'cache-control': cache });
+    const body = await readFile(join(DIST, file));
+    const cache = file.startsWith('assets') ? 'public, max-age=31536000, immutable' : 'no-cache';
+    res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': cache });
     res.end(body);
   } catch {
     res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });

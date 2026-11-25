@@ -11,10 +11,10 @@ RUN npm run build
 # 2. Run the small Node server (static files + login + Claude proxy). It needs no npm packages.
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000
+ENV NODE_ENV=production PORT=8383
 COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY package.json ./
 USER node
-EXPOSE 3000
+EXPOSE 8383
 CMD ["node", "server/index.js"]
