@@ -1,0 +1,8 @@
+# Keep the key and local files out of the image
+.env
+node_modules
+dist
+lib
+demo-data
+WorkflowStudio.html
+README.txt

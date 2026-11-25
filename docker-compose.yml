@@ -1,0 +1,11 @@
+# Usage: docker compose up -d --build   then open http://localhost:8080
+# The key and model are read from .env (the same file used by npm run dev).
+services:
+  workflow-studio:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      ANTHROPIC_API_KEY: ${VITE_ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${VITE_ANTHROPIC_MODEL:-claude-sonnet-5-5}
+    restart: unless-stopped
